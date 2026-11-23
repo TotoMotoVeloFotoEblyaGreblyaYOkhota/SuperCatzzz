@@ -1,0 +1,8 @@
+{
+  "name": "Коты Башни: Тень и Искра",
+  "description": "2D-головоломка в духе Gobliins про двух чёрных котов — мага Томаса и хакера Торквемаду — в мире киберпанка, Ван Гога и Гауди.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
