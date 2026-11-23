@@ -3,6 +3,14 @@ import { GameHud, SpeechBannerData } from './components/GameHud';
 import { GameModals } from './components/GameModals';
 import { TitleScreen } from './components/TitleScreen';
 import { soundEngine } from './game/audio';
+import {
+  getCurrentLang,
+  Lang,
+  nextLang,
+  setCurrentLang,
+  translateGameText,
+  UI_STRINGS,
+} from './game/i18n';
 import { LEVELS } from './game/levels';
 import { musicEngine } from './game/music';
 import { CANVAS_H, CANVAS_W, renderGameFrame } from './game/renderer';
@@ -147,6 +155,7 @@ export default function App() {
     message: '',
   });
   const [speechBanner, setSpeechBanner] = useState<SpeechBannerData | null>(null);
+  const [lang, setLang] = useState<Lang>(() => getCurrentLang());
   const [viewport, setViewport] = useState<{ w: number; h: number }>(() => ({
     w: typeof window !== 'undefined' ? window.innerWidth : 1280,
     h: typeof window !== 'undefined' ? window.innerHeight : 720,
@@ -164,6 +173,12 @@ export default function App() {
   const pendingHotspotRef = useRef<Hotspot | null>(null);
   const screenRef = useRef<GameScreen>(screen);
   screenRef.current = screen;
+  const langRef = useRef<Lang>(lang);
+  langRef.current = lang;
+
+  useEffect(() => {
+    setCurrentLang(lang);
+  }, [lang]);
 
   useEffect(() => {
     preloadAllGameAssets();
@@ -186,17 +201,35 @@ export default function App() {
 
   const currentLevel = LEVELS[currentLevelIdx];
 
+  const handleChangeLang = useCallback(
+    (next: Lang) => {
+      setCurrentLang(next);
+      setLang(next);
+      langRef.current = next;
+      voiceEngine.stop();
+      if (hintTier > 0) {
+        setHintText(translateGameText(currentLevel.hints[hintTier - 1], next));
+      }
+      if (hoveredHotspotRef.current) {
+        setHoverLabel(translateGameText(hoveredHotspotRef.current.name, next));
+      }
+    },
+    [currentLevel, hintTier]
+  );
+
   const say = useCallback(
     (who: CatId | 'dog' | 'system', text: string, duration = 5.2, isIntro = false) => {
+      const activeLang = langRef.current;
+      const localized = translateGameText(text, activeLang);
       const id = bubbleIdRef.current++;
-      setSpeechBanner({ id, who, text, isIntro });
+      setSpeechBanner({ id, who, text: localized, isIntro });
       if (speechTimerRef.current) {
         window.clearTimeout(speechTimerRef.current);
       }
       speechTimerRef.current = window.setTimeout(() => {
         setSpeechBanner((prev) => (prev && prev.id === id ? null : prev));
       }, Math.max(duration, 4.5) * 1000);
-      void voiceEngine.speak(who, text);
+      void voiceEngine.speak(who, localized, activeLang);
     },
     []
   );
@@ -340,11 +373,12 @@ export default function App() {
           st.thomas.targetX = Math.max(80, st.thomas.x - 45);
           st.torq.targetX = Math.max(80, st.torq.x - 55);
           st.dogLunging = true;
+          const activeLang = langRef.current;
           st.caughtSequence = {
             timer: 0,
             duration: 0.95,
-            title,
-            reason,
+            title: translateGameText(title, activeLang),
+            reason: translateGameText(reason, activeLang),
           };
         },
         triggerWin: (epilogue) => {
@@ -406,7 +440,7 @@ export default function App() {
             doorId: exitHs?.id || 'door',
             doorX: doorFloorX,
             doorY: doorFloorY,
-            epilogue,
+            epilogue: translateGameText(epilogue, langRef.current),
           };
         },
       });
@@ -580,9 +614,13 @@ export default function App() {
               }
               return updated;
             });
-            setModalInfo({ title: lvl.title, message: epilogue });
+            const activeLang = langRef.current;
+            setModalInfo({
+              title: translateGameText(lvl.title, activeLang),
+              message: epilogue,
+            });
             setScreen(lvl.id === 10 ? 'GAME_VICTORY' : 'LEVEL_WIN');
-            void voiceEngine.speak('system', epilogue);
+            void voiceEngine.speak('system', epilogue, activeLang);
           }
         }
 
@@ -595,7 +633,11 @@ export default function App() {
             st.caughtSequence = null;
             setModalInfo({ title, message: reason });
             setScreen('CAUGHT');
-            void voiceEngine.speak(lvl.id === 1 || lvl.id === 10 ? 'dog' : 'system', reason);
+            void voiceEngine.speak(
+              lvl.id === 1 || lvl.id === 10 ? 'dog' : 'system',
+              reason,
+              langRef.current
+            );
           }
         }
       }
@@ -751,7 +793,7 @@ export default function App() {
     const { x, y } = toCanvasCoords(e);
     const hs = findHotspotAt(x, y);
     hoveredHotspotRef.current = hs;
-    setHoverLabel(hs ? hs.name : null);
+    setHoverLabel(hs ? translateGameText(hs.name, langRef.current) : null);
   };
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -771,12 +813,13 @@ export default function App() {
       }
 
       if (!canReachZone(lvl, st, st.torq.zoneId, hs.zoneId)) {
+        const ui = UI_STRINGS[langRef.current];
         if (hs.id === 'door' || hs.id === 'helm_wheel' || hs.id === 'bio_scanner') {
           soundEngine.play('error');
-          say('torquemada', 'Туда сейчас не пройти — дорогу перекрывает опасность или пропасть!');
+          say('torquemada', ui.blockedPathError);
         } else {
           soundEngine.play('error');
-          say('torquemada', 'Мне туда не добраться! Может, Томас поможет магией?');
+          say('torquemada', ui.unreachableMagicHint);
         }
         return;
       }
@@ -890,7 +933,7 @@ export default function App() {
     if (nextTier === 0) {
       setHintText(null);
     } else {
-      setHintText(currentLevel.hints[nextTier - 1]);
+      setHintText(translateGameText(currentLevel.hints[nextTier - 1], langRef.current));
     }
   };
 
@@ -911,9 +954,11 @@ export default function App() {
   if (screen === 'TITLE') {
     return (
       <TitleScreen
+        lang={lang}
         unlockedLevel={unlockedLevel}
         isMuted={isMuted}
         isMusicMuted={isMusicMuted}
+        onChangeLang={handleChangeLang}
         onToggleMute={handleToggleMute}
         onToggleMusic={handleToggleMusic}
         onStartLevel={loadLevel}
@@ -931,6 +976,7 @@ export default function App() {
     ? Math.max(viewport.h, viewport.w / targetAspect)
     : Math.min(viewport.h, viewport.w / targetAspect);
   const roomBackdropSrc = getRoomImage(currentLevel.id)?.src;
+  const localizedLevelTitle = translateGameText(currentLevel.title, lang);
 
   return (
     <div className="fixed inset-0 w-screen h-screen overflow-hidden bg-[#040813] flex items-center justify-center">
@@ -958,8 +1004,9 @@ export default function App() {
       />
 
       <GameHud
+        lang={lang}
         levelId={currentLevel.id}
-        levelTitle={currentLevel.title}
+        levelTitle={localizedLevelTitle}
         activeCat={activeCat}
         thomasSpell={thomasSpell}
         torqSkill={torqSkill}
@@ -972,6 +1019,7 @@ export default function App() {
         isMuted={isMuted}
         isMusicMuted={isMusicMuted}
         isVoiceSpeaking={isVoiceSpeaking}
+        onCycleLang={() => handleChangeLang(nextLang(lang))}
         onSelectCat={handleSelectCat}
         onSelectSpell={handleSelectSpell}
         onSelectSkill={handleSelectSkill}
@@ -988,12 +1036,12 @@ export default function App() {
         }}
         onReplaySpeech={() => {
           if (speechBanner) {
-            void voiceEngine.speak(speechBanner.who, speechBanner.text);
+            void voiceEngine.speak(speechBanner.who, speechBanner.text, langRef.current);
           }
         }}
         onSpeakHint={() => {
           if (hintText) {
-            void voiceEngine.speak('thomas', hintText);
+            void voiceEngine.speak('thomas', hintText, langRef.current);
           }
         }}
         onRestartLevel={() => loadLevel(currentLevel.id)}
@@ -1006,12 +1054,14 @@ export default function App() {
       />
 
       <GameModals
+        lang={lang}
         screen={screen}
         levelId={currentLevel.id}
-        levelTitle={currentLevel.title}
+        levelTitle={localizedLevelTitle}
         modalTitle={modalInfo.title}
         modalMessage={modalInfo.message}
         elapsedSeconds={elapsedDisplay}
+        onChangeLang={handleChangeLang}
         onResume={() => setScreen('PLAYING')}
         onRetryLevel={() => loadLevel(currentLevel.id)}
         onNextLevel={() => loadLevel(Math.min(10, currentLevel.id + 1))}

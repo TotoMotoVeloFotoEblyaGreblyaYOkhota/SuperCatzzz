@@ -8,32 +8,39 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 type SpeakerId = 'thomas' | 'torquemada' | 'dog' | 'system';
+type TtsLang = 'ru' | 'en' | 'es';
 
 interface VoiceProfile {
   voiceName: 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr';
-  style: string;
+  styleTemplate: string;
 }
+
+const LANG_ADJECTIVE: Record<TtsLang, string> = {
+  ru: 'Russian',
+  en: 'English',
+  es: 'Spanish',
+};
 
 const VOICE_PROFILES: Record<SpeakerId, VoiceProfile> = {
   thomas: {
     voiceName: 'Charon',
-    style:
-      'Expressive, calm, velvet-voiced Russian cartoon wizard cat speaking with slight theatrical mystique and playful wit',
+    styleTemplate:
+      'Expressive, calm, velvet-voiced __LANG__ cartoon wizard cat speaking with slight theatrical mystique and playful wit',
   },
   torquemada: {
     voiceName: 'Puck',
-    style:
-      'Lively, energetic, witty young Russian cartoon gadget-hacker cat speaking briskly and cheerfully',
+    styleTemplate:
+      'Lively, energetic, witty young __LANG__ cartoon gadget-hacker cat speaking briskly and cheerfully',
   },
   dog: {
     voiceName: 'Fenrir',
-    style:
-      'Deep, gruff, comical Russian cartoon watchdog hound speaking in a gravelly, exaggerated voice',
+    styleTemplate:
+      'Deep, gruff, comical __LANG__ cartoon watchdog hound speaking in a gravelly, exaggerated voice',
   },
   system: {
     voiceName: 'Zephyr',
-    style:
-      'Warm, expressive Russian fairytale narrator reading with theatrical storytelling clarity',
+    styleTemplate:
+      'Warm, expressive __LANG__ fairytale narrator reading with theatrical storytelling clarity',
   },
 };
 
@@ -68,8 +75,8 @@ function setCachedWav(key: string, buf: Buffer) {
   ttsCache.set(key, buf);
 }
 
-async function synthesizeSpeech(who: SpeakerId, text: string): Promise<Buffer> {
-  const cacheKey = `${who}::${text}`;
+async function synthesizeSpeech(who: SpeakerId, text: string, lang: TtsLang): Promise<Buffer> {
+  const cacheKey = `${lang}::${who}::${text}`;
   const cached = ttsCache.get(cacheKey);
   if (cached) return cached;
 
@@ -83,6 +90,7 @@ async function synthesizeSpeech(who: SpeakerId, text: string): Promise<Buffer> {
     }
 
     const profile = VOICE_PROFILES[who] || VOICE_PROFILES.system;
+    const style = profile.styleTemplate.replace('__LANG__', LANG_ADJECTIVE[lang]);
     let lastError: unknown = null;
 
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -96,7 +104,7 @@ async function synthesizeSpeech(who: SpeakerId, text: string): Promise<Buffer> {
                 {
                   text,
                   speechMetadata: {
-                    style: profile.style,
+                    style,
                   },
                 },
               ],
@@ -147,7 +155,7 @@ async function startServer() {
     try {
       const rawText = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
       if (!rawText) {
-        res.status(400).json({ error: 'Текст для озвучки не задан.' });
+        res.status(400).json({ error: 'Text for speech synthesis is empty.' });
         return;
       }
       const text = rawText.slice(0, 600);
@@ -159,8 +167,11 @@ async function startServer() {
         rawWho === 'system'
           ? rawWho
           : 'system';
+      const rawLang = req.body?.lang;
+      const lang: TtsLang =
+        rawLang === 'en' || rawLang === 'es' || rawLang === 'ru' ? rawLang : 'ru';
 
-      const wav = await synthesizeSpeech(who, text);
+      const wav = await synthesizeSpeech(who, text, lang);
       res.setHeader('Content-Type', 'audio/wav');
       res.setHeader('Cache-Control', 'public, max-age=86400');
       res.send(wav);

@@ -1,15 +1,18 @@
 import React, { useEffect, useRef } from 'react';
-import { RotateCcw, ArrowRight, Home, Play, Trophy, AlertTriangle } from 'lucide-react';
+import { RotateCcw, ArrowRight, Home, Play, Trophy, AlertTriangle, Globe } from 'lucide-react';
 import { GameScreen } from '../game/types';
 import { getSprite } from '../game/sprites';
+import { LANG_OPTIONS, Lang, UI_STRINGS } from '../game/i18n';
 
 interface GameModalsProps {
+  lang: Lang;
   screen: GameScreen;
   levelId: number;
   levelTitle: string;
   modalTitle: string;
   modalMessage: string;
   elapsedSeconds: number;
+  onChangeLang?: (lang: Lang) => void;
   onResume: () => void;
   onRetryLevel: () => void;
   onNextLevel: () => void;
@@ -41,18 +44,21 @@ const AngryDogPortrait: React.FC = () => {
 };
 
 export const GameModals: React.FC<GameModalsProps> = ({
+  lang,
   screen,
   levelId,
   levelTitle,
   modalTitle,
   modalMessage,
   elapsedSeconds,
+  onChangeLang,
   onResume,
   onRetryLevel,
   onNextLevel,
   onGoTitle,
 }) => {
   if (screen === 'TITLE' || screen === 'PLAYING') return null;
+  const t = UI_STRINGS[lang];
 
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -67,7 +73,7 @@ export const GameModals: React.FC<GameModalsProps> = ({
           <>
             <AngryDogPortrait />
             <h2 className="font-display text-3xl font-bold text-[#FB7185] mb-2">
-              {modalTitle || 'Ой, кусь!'}
+              {modalTitle || t.caughtDefaultTitle}
             </h2>
             <p className="text-sm leading-relaxed text-[#CBD5E1] mb-6">{modalMessage}</p>
             <div className="flex flex-col gap-2.5">
@@ -76,14 +82,14 @@ export const GameModals: React.FC<GameModalsProps> = ({
                 className="w-full flex items-center justify-center gap-2 py-3 px-5 bg-[#F5B82E] hover:bg-[#FDE047] text-[#070D1F] font-bold rounded-lg transition-colors cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
-                <span>Попробовать комнату заново</span>
+                <span>{t.retryRoom}</span>
               </button>
               <button
                 onClick={onGoTitle}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-5 bg-[#162140] hover:bg-[#1F2E57] text-[#CBD5E1] text-sm font-semibold rounded-lg transition-colors cursor-pointer"
               >
                 <Home className="w-4 h-4" />
-                <span>На главный экран</span>
+                <span>{t.toTitleScreen}</span>
               </button>
             </div>
           </>
@@ -92,7 +98,7 @@ export const GameModals: React.FC<GameModalsProps> = ({
         {screen === 'LEVEL_WIN' && (
           <>
             <div className="text-xs font-mono-tabular font-bold text-[#00E5FF] mb-1">
-              Глава {String(levelId).padStart(2, '0')} пройдена · Время {formatTime(elapsedSeconds)}
+              {t.chapterCleared(levelId, formatTime(elapsedSeconds))}
             </div>
             <h2 className="font-display text-3xl font-bold text-[#F5B82E] mb-3">{levelTitle}</h2>
             <p className="text-sm leading-relaxed text-[#E2E8F0] mb-6">{modalMessage}</p>
@@ -101,7 +107,7 @@ export const GameModals: React.FC<GameModalsProps> = ({
                 onClick={onNextLevel}
                 className="w-full flex items-center justify-center gap-2 py-3 px-5 bg-[#F5B82E] hover:bg-[#FDE047] text-[#070D1F] font-bold rounded-lg transition-colors cursor-pointer"
               >
-                <span>Следующая глава</span>
+                <span>{t.nextChapter}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
               <button
@@ -109,7 +115,7 @@ export const GameModals: React.FC<GameModalsProps> = ({
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-5 bg-[#162140] hover:bg-[#1F2E57] text-[#CBD5E1] text-sm font-semibold rounded-lg transition-colors cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
-                <span>Переиграть комнату</span>
+                <span>{t.replayRoom}</span>
               </button>
             </div>
           </>
@@ -121,10 +127,10 @@ export const GameModals: React.FC<GameModalsProps> = ({
               <Trophy className="w-7 h-7 text-[#FDE047]" />
             </div>
             <div className="text-xs font-mono-tabular text-[#00E5FF] mb-1">
-              Все 10 глав башни пройдены!
+              {t.allClearedBadge}
             </div>
             <h2 className="font-display text-4xl font-bold text-[#F5B82E] mb-3">
-              Свобода под Звёздной Ночью!
+              {t.victoryHeading}
             </h2>
             <p className="text-sm leading-relaxed text-[#E2E8F0] mb-6">{modalMessage}</p>
             <div className="flex flex-col gap-2.5">
@@ -133,7 +139,7 @@ export const GameModals: React.FC<GameModalsProps> = ({
                 className="w-full flex items-center justify-center gap-2 py-3 px-5 bg-[#F5B82E] hover:bg-[#FDE047] text-[#070D1F] font-bold rounded-lg transition-colors cursor-pointer"
               >
                 <Home className="w-4 h-4" />
-                <span>На главный экран</span>
+                <span>{t.toTitleScreen}</span>
               </button>
             </div>
           </>
@@ -141,31 +147,53 @@ export const GameModals: React.FC<GameModalsProps> = ({
 
         {screen === 'PAUSED' && (
           <>
-            <h2 className="font-display text-3xl font-bold text-[#F5B82E] mb-2">Пауза</h2>
-            <p className="text-xs text-[#94A3B8] mb-6">
-              Глава {levelId}: {levelTitle}
+            <h2 className="font-display text-3xl font-bold text-[#F5B82E] mb-2">
+              {t.pauseHeading}
+            </h2>
+            <p className="text-xs text-[#94A3B8] mb-5">
+              {t.pauseChapterLine(levelId, levelTitle)}
             </p>
+
+            {onChangeLang && (
+              <div className="flex items-center justify-center gap-1.5 mb-5">
+                <Globe className="w-3.5 h-3.5 text-[#00E5FF] mr-1" />
+                {LANG_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => onChangeLang(opt.id)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors cursor-pointer ${
+                      lang === opt.id
+                        ? 'bg-[#F5B82E] border-[#F5B82E] text-[#070D1F]'
+                        : 'bg-[#131D3A] border-[#2C3E6B] text-[#CBD5E1] hover:border-[#00E5FF]'
+                    }`}
+                  >
+                    {opt.native}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="flex flex-col gap-2.5">
               <button
                 onClick={onResume}
                 className="w-full flex items-center justify-center gap-2 py-3 px-5 bg-[#F5B82E] hover:bg-[#FDE047] text-[#070D1F] font-bold rounded-lg transition-colors cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-current" />
-                <span>Продолжить игру</span>
+                <span>{t.resumeGame}</span>
               </button>
               <button
                 onClick={onRetryLevel}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-5 bg-[#162140] hover:bg-[#1F2E57] text-[#E2E8F0] text-sm font-semibold rounded-lg transition-colors cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
-                <span>Начать комнату заново</span>
+                <span>{t.restartRoomTip}</span>
               </button>
               <button
                 onClick={onGoTitle}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-5 bg-[#162140] hover:bg-[#1F2E57] text-[#CBD5E1] text-sm font-semibold rounded-lg transition-colors cursor-pointer"
               >
                 <Home className="w-4 h-4" />
-                <span>Выйти в меню</span>
+                <span>{t.exitToMenu}</span>
               </button>
             </div>
           </>

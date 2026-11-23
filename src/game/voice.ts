@@ -1,4 +1,5 @@
 import { CatId } from './types';
+import { getCurrentLang, Lang } from './i18n';
 import { soundEngine } from './audio';
 
 export type VoiceSpeaker = CatId | 'dog' | 'system';
@@ -61,21 +62,32 @@ function playFallbackGoblinChatter(who: VoiceSpeaker, text: string, token: numbe
   }, syllables * stepDur * 1000 + 80);
 }
 
-function tryBrowserRussianSpeech(who: VoiceSpeaker, text: string, token: number): boolean {
+const SPEECH_LOCALE_TAG: Record<Lang, string> = {
+  ru: 'ru-RU',
+  en: 'en-US',
+  es: 'es-ES',
+};
+
+function tryBrowserSpeech(
+  who: VoiceSpeaker,
+  text: string,
+  lang: Lang,
+  token: number
+): boolean {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     return false;
   }
   const voices = window.speechSynthesis.getVoices();
-  const ruVoice = voices.find((v) => v.lang.toLowerCase().startsWith('ru'));
-  if (!ruVoice) {
+  const matchedVoice = voices.find((v) => v.lang.toLowerCase().startsWith(lang));
+  if (!matchedVoice) {
     return false;
   }
 
   try {
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
-    utter.voice = ruVoice;
-    utter.lang = 'ru-RU';
+    utter.voice = matchedVoice;
+    utter.lang = SPEECH_LOCALE_TAG[lang];
     utter.pitch = who === 'thomas' ? 0.92 : who === 'torquemada' ? 1.2 : who === 'dog' ? 0.72 : 1.0;
     utter.rate = who === 'torquemada' ? 1.08 : who === 'dog' ? 0.92 : 1.0;
     utter.volume = 0.92;
@@ -139,7 +151,7 @@ export const voiceEngine = {
     notifySpeaking(false);
   },
 
-  async speak(who: VoiceSpeaker, rawText: string) {
+  async speak(who: VoiceSpeaker, rawText: string, lang: Lang = getCurrentLang()) {
     if (voiceMuted || !voiceEnabled) return;
     const text = cleanSpeechText(rawText);
     if (!text) return;
@@ -147,7 +159,7 @@ export const voiceEngine = {
     this.stop();
     const token = ++currentToken;
 
-    const cacheKey = `${who}::${text}`;
+    const cacheKey = `${lang}::${who}::${text}`;
     const cachedUrl = audioBlobUrlCache.get(cacheKey);
     if (cachedUrl) {
       this.playAudioUrl(cachedUrl, token);
@@ -161,14 +173,14 @@ export const voiceEngine = {
       const resp = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ who, text }),
+        body: JSON.stringify({ who, text, lang }),
         signal: controller.signal,
       });
 
       if (token !== currentToken || voiceMuted || !voiceEnabled) return;
 
       if (!resp.ok) {
-        if (!tryBrowserRussianSpeech(who, text, token)) {
+        if (!tryBrowserSpeech(who, text, lang, token)) {
           playFallbackGoblinChatter(who, text, token);
         }
         return;
@@ -183,7 +195,7 @@ export const voiceEngine = {
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       if (token !== currentToken || voiceMuted || !voiceEnabled) return;
-      if (!tryBrowserRussianSpeech(who, text, token)) {
+      if (!tryBrowserSpeech(who, text, lang, token)) {
         playFallbackGoblinChatter(who, text, token);
       }
     }

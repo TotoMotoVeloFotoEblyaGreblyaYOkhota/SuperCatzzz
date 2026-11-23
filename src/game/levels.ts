@@ -1,7 +1,10 @@
+import { getCurrentLang, t3, translateGameText } from './i18n';
 import { ActionContext, LevelDefinition } from './types';
 
 function defaultWrongReaction(ctx: ActionContext) {
   const { cat, spell, skill, itemId, hotspot, say, playSound } = ctx;
+  const lang = getCurrentLang();
+  const hsName = translateGameText(hotspot.name, lang);
 
   if (cat === 'thomas') {
     if (spell === 'shadow') {
@@ -16,26 +19,74 @@ function defaultWrongReaction(ctx: ActionContext) {
     }
     if (spell === 'enlarge') {
       playSound('error');
-      say('thomas', `Увеличивать «${hotspot.name}» сейчас ни к чему — только место займёт.`);
+      say(
+        'thomas',
+        t3(
+          lang,
+          `Увеличивать «${hsName}» сейчас ни к чему — только место займёт.`,
+          `No point enlarging “${hsName}” right now — it’ll only hog space.`,
+          `No tiene sentido agrandar «${hsName}» ahora — solo ocupará espacio.`
+        )
+      );
     } else if (spell === 'shrink') {
       playSound('error');
-      say('thomas', `Не думаю, что сжатый «${hotspot.name}» нам поможет.`);
+      say(
+        'thomas',
+        t3(
+          lang,
+          `Не думаю, что сжатый «${hsName}» нам поможет.`,
+          `I doubt a tiny “${hsName}” will do us any good.`,
+          `No creo que encoger «${hsName}» nos ayude ahora.`
+        )
+      );
     } else {
       playSound('error');
-      say('thomas', `Телекинез тут бессилен. Может, стоит попробовать другое заклинание или позвать Торквемаду?`);
+      say(
+        'thomas',
+        t3(
+          lang,
+          'Телекинез тут бессилен. Может, стоит попробовать другое заклинание или позвать Торквемаду?',
+          'Telekinesis won’t help here. Maybe try another spell or call Torquemada?',
+          'La telequinesis no basta aquí. ¿Probamos otro hechizo o llamamos a Torquemada?'
+        )
+      );
     }
   } else {
     if (itemId) {
       playSound('error');
-      say('torquemada', `Этот предмет к «${hotspot.name}» явно не подходит!`);
+      say(
+        'torquemada',
+        t3(
+          lang,
+          `Этот предмет к «${hsName}» явно не подходит!`,
+          `That item clearly doesn’t fit “${hsName}”!`,
+          `¡Ese objeto claramente no encaja con «${hsName}»!`
+        )
+      );
       return;
     }
     if (skill === 'hack') {
       playSound('error');
-      say('torquemada', `Здесь нет электроники — мой хакер-разряд тут без дела.`);
+      say(
+        'torquemada',
+        t3(
+          lang,
+          'Здесь нет электроники — мой хакер-разряд тут без дела.',
+          'No electronics in here — my Hacker Spark has nothing to zap.',
+          'Aquí no hay electrónica — mi Chispazo Hacker no sirve de nada.'
+        )
+      );
     } else {
       playSound('error');
-      say('torquemada', `Трогаю «${hotspot.name}» лапками... Ничего не происходит, мур.`);
+      say(
+        'torquemada',
+        t3(
+          lang,
+          `Трогаю «${hsName}» лапками... Ничего не происходит, мур.`,
+          `Poking “${hsName}” with my paws... Nothing happens, purr.`,
+          `Toco «${hsName}» con mis patitas... No pasa nada, miau.`
+        )
+      );
     }
   }
 }

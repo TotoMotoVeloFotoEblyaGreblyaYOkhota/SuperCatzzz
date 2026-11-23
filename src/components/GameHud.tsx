@@ -13,10 +13,12 @@ import {
   Pause,
   Briefcase,
   Music,
+  Globe,
   X,
 } from 'lucide-react';
 import { CatId, InventoryItem, ThomasSpell, TorqSkill } from '../game/types';
 import { getSprite, SpriteKey } from '../game/sprites';
+import { LANG_OPTIONS, Lang, translateGameText, UI_STRINGS } from '../game/i18n';
 
 export interface SpeechBannerData {
   id: number;
@@ -26,6 +28,7 @@ export interface SpeechBannerData {
 }
 
 interface GameHudProps {
+  lang: Lang;
   levelId: number;
   levelTitle: string;
   activeCat: CatId;
@@ -40,6 +43,7 @@ interface GameHudProps {
   isMuted: boolean;
   isMusicMuted?: boolean;
   isVoiceSpeaking?: boolean;
+  onCycleLang?: () => void;
   onSelectCat: (cat: CatId) => void;
   onSelectSpell: (spell: ThomasSpell) => void;
   onSelectSkill: (skill: TorqSkill) => void;
@@ -124,6 +128,7 @@ function getItemSpriteKey(icon: InventoryItem['icon']): SpriteKey {
 }
 
 export const GameHud: React.FC<GameHudProps> = ({
+  lang,
   levelId,
   levelTitle,
   activeCat,
@@ -138,6 +143,7 @@ export const GameHud: React.FC<GameHudProps> = ({
   isMuted,
   isMusicMuted = false,
   isVoiceSpeaking = false,
+  onCycleLang,
   onSelectCat,
   onSelectSpell,
   onSelectSkill,
@@ -153,26 +159,28 @@ export const GameHud: React.FC<GameHudProps> = ({
   onPause,
 }) => {
   const [dockHoverLabel, setDockHoverLabel] = useState<string | null>(null);
+  const t = UI_STRINGS[lang];
+  const langMeta = LANG_OPTIONS.find((o) => o.id === lang) || LANG_OPTIONS[0];
 
   const spells: Array<{ id: ThomasSpell; tooltip: string; icon: React.ReactNode }> = [
     {
       id: 'telekinesis',
-      tooltip: 'Телекинез — двигает и поворачивает предметы магией (Q)',
+      tooltip: t.spells.telekinesis,
       icon: <Sparkles className="w-[18px] h-[18px]" />,
     },
     {
       id: 'enlarge',
-      tooltip: 'Увеличить — делает предмет большим и тяжёлым (W)',
+      tooltip: t.spells.enlarge,
       icon: <Maximize2 className="w-[18px] h-[18px]" />,
     },
     {
       id: 'shrink',
-      tooltip: 'Уменьшить — сжимает предметы и проходы (E)',
+      tooltip: t.spells.shrink,
       icon: <Minimize2 className="w-[18px] h-[18px]" />,
     },
     {
       id: 'shadow',
-      tooltip: 'Тень-прыжок — телепорт между теневыми пятнами (R)',
+      tooltip: t.spells.shadow,
       icon: <Moon className="w-[18px] h-[18px]" />,
     },
   ];
@@ -180,12 +188,12 @@ export const GameHud: React.FC<GameHudProps> = ({
   const skills: Array<{ id: TorqSkill; tooltip: string; icon: React.ReactNode }> = [
     {
       id: 'paws',
-      tooltip: 'Лапки — берёт и применяет предметы вручную (Q)',
+      tooltip: t.skills.paws,
       icon: <Hand className="w-[18px] h-[18px]" />,
     },
     {
       id: 'hack',
-      tooltip: 'Хакер-ток — чинит щитки и не боится электричества (W)',
+      tooltip: t.skills.hack,
       icon: <Zap className="w-[18px] h-[18px]" />,
     },
   ];
@@ -195,27 +203,27 @@ export const GameHud: React.FC<GameHudProps> = ({
   const speakerMeta = speechBanner
     ? speechBanner.who === 'thomas'
       ? {
-          name: 'Томас',
+          name: t.thomasSpeaker,
           border: 'border-[#C084FC]/70',
           accent: 'text-[#C084FC]',
           sprite: 'thomas_idle' as SpriteKey,
         }
       : speechBanner.who === 'torquemada'
         ? {
-            name: 'Торквемада',
+            name: t.torqSpeaker,
             border: 'border-[#00E5FF]/70',
             accent: 'text-[#38BDF8]',
             sprite: 'torq_idle' as SpriteKey,
           }
         : speechBanner.who === 'dog'
           ? {
-              name: 'Баскервиль',
+              name: t.dogSpeaker,
               border: 'border-[#FB7185]/75',
               accent: 'text-[#FB7185]',
               sprite: 'dog_angry' as SpriteKey,
             }
           : {
-              name: `Глава ${String(levelId).padStart(2, '0')}`,
+              name: `${t.chapterWord} ${String(levelId).padStart(2, '0')}`,
               border: 'border-[#F5B82E]/70',
               accent: 'text-[#F5B82E]',
               sprite: null,
@@ -231,11 +239,11 @@ export const GameHud: React.FC<GameHudProps> = ({
             <div className="flex items-center justify-between gap-3 mb-1">
               <div className="flex items-center gap-2 text-xs font-bold text-[#F5B82E]">
                 <span>
-                  Глава {String(levelId).padStart(2, '0')} · {levelTitle}
+                  {t.chapterWord} {String(levelId).padStart(2, '0')} · {levelTitle}
                 </span>
                 <span className="text-[#475569]">•</span>
                 <span className="text-[#FDE047]">
-                  {hintTier === 1 ? 'Подсказка' : 'Пошаговый план'}
+                  {hintTier === 1 ? t.hintWord : t.stepPlanWord}
                 </span>
               </div>
               <div className="flex items-center gap-1 shrink-0">
@@ -245,8 +253,8 @@ export const GameHud: React.FC<GameHudProps> = ({
                     className={`p-1 rounded-md hover:bg-white/10 transition-colors cursor-pointer ${
                       isVoiceSpeaking ? 'text-[#00E5FF] animate-pulse' : 'text-[#F5B82E] hover:text-white'
                     }`}
-                    title="Озвучить подсказку"
-                    aria-label="Озвучить подсказку"
+                    title={t.speakHintTip}
+                    aria-label={t.speakHintTip}
                   >
                     <Volume2 className="w-4 h-4" />
                   </button>
@@ -254,7 +262,7 @@ export const GameHud: React.FC<GameHudProps> = ({
                 <button
                   onClick={onCloseHint}
                   className="p-1 text-[#94A3B8] hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer"
-                  aria-label="Закрыть подсказку"
+                  aria-label={t.closeHintTip}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -278,7 +286,7 @@ export const GameHud: React.FC<GameHudProps> = ({
                 <span className={`text-xs font-bold ${speakerMeta.accent}`}>{speakerMeta.name}</span>
                 {speechBanner.isIntro && (
                   <span className="text-[11px] font-semibold text-[#F5B82E]/90 truncate">
-                    · Глава {String(levelId).padStart(2, '0')}: {levelTitle}
+                    · {t.chapterWord} {String(levelId).padStart(2, '0')}: {levelTitle}
                   </span>
                 )}
               </div>
@@ -291,8 +299,8 @@ export const GameHud: React.FC<GameHudProps> = ({
                   className={`p-1 rounded-md hover:bg-white/10 transition-colors cursor-pointer ${
                     isVoiceSpeaking ? 'text-[#00E5FF] animate-pulse' : 'text-[#94A3B8] hover:text-white'
                   }`}
-                  title="Повторить озвучку"
-                  aria-label="Повторить озвучку"
+                  title={t.replaySpeechTip}
+                  aria-label={t.replaySpeechTip}
                 >
                   <Volume2 className="w-3.5 h-3.5" />
                 </button>
@@ -300,7 +308,7 @@ export const GameHud: React.FC<GameHudProps> = ({
               <button
                 onClick={onDismissSpeech}
                 className="p-1 text-[#94A3B8] hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-                aria-label="Скрыть сообщение"
+                aria-label={t.dismissSpeechTip}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -325,9 +333,9 @@ export const GameHud: React.FC<GameHudProps> = ({
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => onSelectCat('thomas')}
-              onMouseEnter={() => setDockHoverLabel('Томас — Кот-маг (клавиша 1)')}
-              title="Томас — Кот-маг (1)"
-              aria-label="Томас"
+              onMouseEnter={() => setDockHoverLabel(t.thomasDockTip)}
+              title={t.thomasDockTip}
+              aria-label={t.thomasSpeaker}
               className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all cursor-pointer overflow-hidden ${
                 activeCat === 'thomas'
                   ? 'bg-[#2B1952] border-[#C084FC] shadow-[0_0_16px_rgba(192,132,252,0.4)] scale-105'
@@ -339,9 +347,9 @@ export const GameHud: React.FC<GameHudProps> = ({
 
             <button
               onClick={() => onSelectCat('torquemada')}
-              onMouseEnter={() => setDockHoverLabel('Торквемада — Кот-хакер (клавиша 2)')}
-              title="Торквемада — Кот-хакер (2)"
-              aria-label="Торквемада"
+              onMouseEnter={() => setDockHoverLabel(t.torqDockTip)}
+              title={t.torqDockTip}
+              aria-label={t.torqSpeaker}
               className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all cursor-pointer overflow-hidden ${
                 activeCat === 'torquemada'
                   ? 'bg-[#0F2C47] border-[#00E5FF] shadow-[0_0_16px_rgba(0,229,255,0.4)] scale-105'
@@ -406,8 +414,8 @@ export const GameHud: React.FC<GameHudProps> = ({
           <div className="flex items-center gap-1.5 shrink-0">
             {inventory.length === 0 ? (
               <div
-                onMouseEnter={() => setDockHoverLabel('Рюкзак пуст')}
-                title="Рюкзак пуст"
+                onMouseEnter={() => setDockHoverLabel(t.emptyPackTip)}
+                title={t.emptyPackTip}
                 className="w-10 h-10 rounded-xl bg-[#0D1428]/80 border border-dashed border-[#2A3B66] flex items-center justify-center text-[#475569]"
               >
                 <Briefcase className="w-[17px] h-[17px]" />
@@ -415,6 +423,8 @@ export const GameHud: React.FC<GameHudProps> = ({
             ) : (
               inventory.map((item) => {
                 const isEquipped = selectedItemId === item.id && activeCat === 'torquemada';
+                const itemName = translateGameText(item.name, lang);
+                const itemDesc = translateGameText(item.description, lang);
                 return (
                   <button
                     key={item.id}
@@ -422,9 +432,9 @@ export const GameHud: React.FC<GameHudProps> = ({
                       onSelectCat('torquemada');
                       onSelectItem(isEquipped ? null : item.id);
                     }}
-                    onMouseEnter={() => setDockHoverLabel(`${item.name} — ${item.description}`)}
-                    title={`${item.name}: ${item.description}`}
-                    aria-label={item.name}
+                    onMouseEnter={() => setDockHoverLabel(`${itemName} — ${itemDesc}`)}
+                    title={`${itemName}: ${itemDesc}`}
+                    aria-label={itemName}
                     className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
                       isEquipped
                         ? 'bg-[#422D0A] border-[#F5B82E] shadow-[0_0_14px_rgba(245,184,46,0.4)] scale-105'
@@ -447,14 +457,14 @@ export const GameHud: React.FC<GameHudProps> = ({
               onMouseEnter={() =>
                 setDockHoverLabel(
                   hintTier === 0
-                    ? 'Подсказка (H)'
+                    ? t.hintShowTip
                     : hintTier === 1
-                      ? 'Показать точный план (H)'
-                      : 'Скрыть подсказку (H)'
+                      ? t.hintPlanTip
+                      : t.hintHideTip
                 )
               }
-              title="Подсказка (H)"
-              aria-label="Подсказка"
+              title={t.hintShowTip}
+              aria-label={t.hintWord}
               className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
                 hintTier > 0
                   ? 'bg-[#3D2C0B] border-[#F5B82E] text-[#FDE047]'
@@ -466,9 +476,9 @@ export const GameHud: React.FC<GameHudProps> = ({
 
             <button
               onClick={onRestartLevel}
-              onMouseEnter={() => setDockHoverLabel('Начать комнату заново')}
-              title="Начать комнату заново"
-              aria-label="Начать комнату заново"
+              onMouseEnter={() => setDockHoverLabel(t.restartRoomTip)}
+              title={t.restartRoomTip}
+              aria-label={t.restartRoomTip}
               className="w-10 h-10 rounded-xl bg-[#111930] border border-[#26355E] text-[#CBD5E1] hover:text-white hover:border-[#475F9E] flex items-center justify-center transition-all cursor-pointer"
             >
               <RotateCcw className="w-[17px] h-[17px]" />
@@ -479,13 +489,11 @@ export const GameHud: React.FC<GameHudProps> = ({
                 onClick={onToggleMusic}
                 onMouseEnter={() =>
                   setDockHoverLabel(
-                    isMusicMuted
-                      ? 'Включить музыку (20-мин луп)'
-                      : 'Выключить музыку (20-мин луп)'
+                    isMusicMuted ? t.musicLoopEnableTip : t.musicLoopDisableTip
                   )
                 }
-                title={isMusicMuted ? 'Включить музыку' : 'Выключить музыку'}
-                aria-label={isMusicMuted ? 'Включить музыку' : 'Выключить музыку'}
+                title={isMusicMuted ? t.musicEnableTip : t.musicDisableTip}
+                aria-label={isMusicMuted ? t.musicEnableTip : t.musicDisableTip}
                 className="relative w-10 h-10 rounded-xl bg-[#111930] border border-[#26355E] text-[#CBD5E1] hover:border-[#C084FC] flex items-center justify-center transition-all cursor-pointer"
               >
                 <Music
@@ -501,9 +509,11 @@ export const GameHud: React.FC<GameHudProps> = ({
 
             <button
               onClick={onToggleMute}
-              onMouseEnter={() => setDockHoverLabel(isMuted ? 'Включить звук' : 'Выключить звук')}
-              title={isMuted ? 'Включить звук' : 'Выключить звук'}
-              aria-label={isMuted ? 'Включить звук' : 'Выключить звук'}
+              onMouseEnter={() =>
+                setDockHoverLabel(isMuted ? t.soundEnableTip : t.soundDisableTip)
+              }
+              title={isMuted ? t.soundEnableTip : t.soundDisableTip}
+              aria-label={isMuted ? t.soundEnableTip : t.soundDisableTip}
               className="w-10 h-10 rounded-xl bg-[#111930] border border-[#26355E] text-[#CBD5E1] hover:border-[#00E5FF] flex items-center justify-center transition-all cursor-pointer"
             >
               {isMuted ? (
@@ -513,11 +523,27 @@ export const GameHud: React.FC<GameHudProps> = ({
               )}
             </button>
 
+            {onCycleLang && (
+              <button
+                onClick={() => {
+                  onCycleLang();
+                }}
+                onMouseEnter={() =>
+                  setDockHoverLabel(t.languageTip(langMeta.native, langMeta.short))
+                }
+                title={t.languageTip(langMeta.native, langMeta.short)}
+                aria-label={t.languageTip(langMeta.native, langMeta.short)}
+                className="w-10 h-10 rounded-xl bg-[#111930] border border-[#26355E] text-[#38BDF8] hover:text-white hover:border-[#38BDF8] flex items-center justify-center transition-all cursor-pointer"
+              >
+                <Globe className="w-[17px] h-[17px]" />
+              </button>
+            )}
+
             <button
               onClick={onPause}
-              onMouseEnter={() => setDockHoverLabel(`Пауза · Глава ${levelId}: ${levelTitle} (Esc)`)}
-              title="Пауза (Esc)"
-              aria-label="Пауза"
+              onMouseEnter={() => setDockHoverLabel(t.pauseTip(levelId, levelTitle))}
+              title={t.pauseAria}
+              aria-label={t.pauseAria}
               className="w-10 h-10 rounded-xl bg-[#111930] border border-[#26355E] text-[#CBD5E1] hover:text-white hover:border-[#475F9E] flex items-center justify-center transition-all cursor-pointer"
             >
               <Pause className="w-[17px] h-[17px]" />

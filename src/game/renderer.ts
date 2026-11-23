@@ -1,3 +1,4 @@
+import { getCurrentLang, UI_STRINGS } from './i18n';
 import { getRoomImage, getSprite, SpriteKey } from './sprites';
 import {
   CatEntity,
@@ -895,7 +896,7 @@ function drawHotspot(
       ctx.save();
       ctx.fillStyle = '#EF4444';
       ctx.font = 'bold 28px Manrope';
-      ctx.fillText('!! ГАВ !!', cx + lungeX - 45, hs.y - 8);
+      ctx.fillText(UI_STRINGS[getCurrentLang()].barkText, cx + lungeX - 45, hs.y - 8);
       ctx.restore();
     } else if (hs.active && state.levelId === 1) {
       ctx.save();
